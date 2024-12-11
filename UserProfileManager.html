@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SBA 316 DOM</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/form_styles.css">
+</head>
+<body class="container">
+<div class="row">
+    <header id="User Profile" class="col-12">
+        <button id="get_user_profiles_button" class="bg-success">Show All User Profiles</button>
+        <button id="delete_user_profiles_button" class="bg-danger">Save Profiles to File</button>
+        <button id="load_user_profiles_button" class="bg-primary">Load Profiles from File</button>
+    </header>
+</div>
+<div class="row">
+    <main class="col-12">
+        <div class="row">
+            <div class="col-4">
+                <form id="create_user_profile_form">
+                    <div id="create_user_profile_container">
+                        <label for="user_first_name">First Name: </label>
+                        <input type="text" required id="user_first_name">
+                        <label for="user_last_name">Last Name: </label>
+                        <input type="text" required id="user_last_name">
+                        <label for="user_dob">Date of Birth: </label>
+                        <input type="date" required id="user_dob">
+                        <label for="user_sex">Sex: </label>
+                        <select required id="user_sex">
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <br>
+                    <button id="create_user_profiles_button" class="bg-primary">Create User Profile</button>
+                    <button id="update_user_profiles_button" class="bg-warning">Update User Profile</button>
+                </form>
+            </div>
+
+            <div class="col-4" id="selected_profile_container">
+                <fieldset>
+                    <legend>Selected Profile</legend>
+                    <div><label>First Name:</label> <span id="show_user_first_name"></span></div>
+                    <div><label>Last Name:</label> <span id="show_user_last_name"></span></div>
+                    <div><label>Sex:</label> <span id="show_user_sex"></span></div>
+                    <div><label>DOB:</label> <span id="show_user_dob"></span></div>
+                </fieldset>
+            </div>
+
+            <div class="col-4">
+                <div id="profiles_container"></div>
+                <template id="profile_template">
+                    <div class="profile-item">
+                        <div><label>First Name:</label> <span class="first_name"></span></div>
+                        <div><label>Last Name:</label> <span class="last_name"></span></div>
+                        <div><label>Sex:</label> <span class="sex"></span></div>
+                        <div><label>DOB:</label> <span class="dob"></span></div>
+                        <button class="edit-profile bg-info">Edit</button>
+                        <hr>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    /**
+     * ProfileModel is responsible for storing, creating, updating, 
+     * and managing Profile objects.
+     */
+    class ProfileModel {
+        static profiles = [];
+
+        static createProfile(data) {
+            this.profiles.push(data);
+        }
+
+        static updateProfile(index, updatedData) {
+            if (index >= 0 && index < this.profiles.length) {
+                this.profiles[index] = updatedData;
+            }
+        }
+
+        static getProfiles() {
+            return this.profiles;
+        }
+
+        static loadProfilesFromFile(profiles) {
+            this.profiles = profiles;
+        }
+    }
+
+    /**
+     * ProfileView handles rendering profiles,
+     * updating the DOM, and user interactions.
+     */
+    class ProfileView {
+        static renderProfiles(profiles) {
+            const container = document.getElementById('profiles_container');
+            const template = document.getElementById('profile_template');
+            container.innerHTML = '';
+
+            profiles.forEach((profile, index) => {
+                const clone = document.importNode(template.content, true);
+                clone.querySelector('.first_name').textContent = profile.first_name;
+                clone.querySelector('.last_name').textContent = profile.last_name;
+                clone.querySelector('.sex').textContent = profile.sex;
+                clone.querySelector('.dob').textContent = profile.dob;
+
+                clone.querySelector('.edit-profile').addEventListener('click', () => {
+                    ProfileController.loadProfileForEditing(profile, index);
+                });
+                container.appendChild(clone);
+            });
+        }
+
+        static displaySelectedProfile(profile) {
+            document.getElementById('show_user_first_name').textContent = profile.first_name;
+            document.getElementById('show_user_last_name').textContent = profile.last_name;
+            document.getElementById('show_user_sex').textContent = profile.sex;
+            document.getElementById('show_user_dob').textContent = profile.dob;
+        }
+
+        static prefillForm(profile) {
+            document.getElementById('user_first_name').value = profile.first_name;
+            document.getElementById('user_last_name').value = profile.last_name;
+            document.getElementById('user_dob').value = profile.dob;
+            document.getElementById('user_sex').value = profile.sex;
+        }
+    }
+
+    /**
+     * ProfileController acts as the mediator between the
+     * model and the view, handling user input and actions.
+     */
+    class ProfileController {
+        static setupEventListeners() {
+            document.getElementById('create_user_profiles_button').addEventListener('click', this.addProfile);
+            document.getElementById('update_user_profiles_button').addEventListener('click', this.updateProfile);
+            document.getElementById('delete_user_profiles_button').addEventListener('click', this.saveProfilesToFile);
+            document.getElementById('load_user_profiles_button').addEventListener('click', this.loadProfilesFromFile);
+            document.getElementById('get_user_profiles_button').addEventListener('click', () => {
+                ProfileView.renderProfiles(ProfileModel.getProfiles());
+            });
+        }
+
+        static addProfile(e) {
+            e.preventDefault();
+            const profile = ProfileController.getFormData();
+            ProfileModel.createProfile(profile);
+            ProfileView.renderProfiles(ProfileModel.getProfiles());
+            document.getElementById('create_user_profile_form').reset();
+        }
+
+        static loadProfileForEditing(profile, index) {
+            ProfileView.prefillForm(profile);
+            document.getElementById('create_user_profile_form').dataset.editIndex = index;
+        }
+
+        static updateProfile(e) {
+            e.preventDefault();
+            const index = document.getElementById('create_user_profile_form').dataset.editIndex;
+            if (index !== undefined) {
+                const updatedProfile = ProfileController.getFormData();
+                ProfileModel.updateProfile(index, updatedProfile);
+                ProfileView.renderProfiles(ProfileModel.getProfiles());
+                document.getElementById('create_user_profile_form').reset();
+                delete document.getElementById('create_user_profile_form').dataset.editIndex;
+            }
+        }
+
+        static getFormData() {
+            return {
+                first_name: document.getElementById('user_first_name').value,
+                last_name: document.getElementById('user_last_name').value,
+                dob: document.getElementById('user_dob').value,
+                sex: document.getElementById('user_sex').value,
+            };
+        }
+
+        static async saveProfilesToFile() {
+            const profiles = ProfileModel.getProfiles();
+            try {
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: 'user_profiles.json',
+                    types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }]
+                });
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(profiles, null, 2));
+                await writable.close();
+                alert('Profiles saved to file!');
+            } catch (err) {
+                console.error('Error saving profiles:', err);
+            }
+        }
+
+        static async loadProfilesFromFile() {
+            try {
+                const [fileHandle] = await window.showOpenFilePicker({
+                    types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }]
+                });
+                const file = await fileHandle.getFile();
+                const content = await file.text();
+                const profiles = JSON.parse(content);
+                ProfileModel.loadProfilesFromFile(profiles);
+                ProfileView.renderProfiles(profiles);
+                alert('Profiles loaded from file!');
+            } catch (err) {
+                console.error('Error loading profiles:', err);
+            }
+        }
+    }
+
+    // Initialize application
+    document.addEventListener('DOMContentLoaded', () => {
+        ProfileController.setupEventListeners();
+        ProfileView.renderProfiles(ProfileModel.getProfiles());
+    });
+</script>
+</body>
+</html>
